@@ -1,45 +1,98 @@
+
 from models.role import Role
 from models.permissao import Permissao
 from models.usuario import Usuario
 
+
+# =========================
+# FUNÇÕES DE CONSULTA
+# =========================
+
 def consultar_usuarios(usuarios):
     if not usuarios:
         print("Não existem usuários cadastrados.")
-    else:
-        for usuario in usuarios:
-            print(f"Nome: {usuario.nome}")
-            print(f"Matrícula: {usuario.matricula}")
-            print(f"Departamento: {usuario.departamento}")
-            print(f"Cargo: {usuario.cargo}")
-            print("--------------------")
+        return
+
+    for usuario in usuarios:
+        print(f"Nome: {usuario.nome}")
+        print(f"Matrícula: {usuario.matricula}")
+        print(f"Departamento: {usuario.departamento}")
+        print(f"Cargo: {usuario.cargo}")
+        print(f"Role: {usuario.role.nome}")
+        print(f"Status: {usuario.status}")
+        print("--------------------")
+
 
 def consultar_roles(roles):
     if not roles:
         print("Não existem Roles cadastradas.")
-    else:
-        for role in roles:
-            print(f"Nome: {role.nome}")
-            print(f"Descrição: {role.descricao}")
-            print(f"Status: {role.status}")
-            print("--------------------")
+        return
+
+    for role in roles:
+        print(f"Nome: {role.nome}")
+        print(f"Descrição: {role.descricao}")
+        print(f"Status: {role.status}")
+        print("--------------------")
+
 
 def consultar_permissoes(permissoes):
     if not permissoes:
         print("Não existem permissões cadastradas.")
-    else:
-        for permissao in permissoes:
-            print(f"Nome: {permissao.nome}")
-            print(f"Descrição: {permissao.descricao}")
-            print(f"Status: {permissao.status}")
-            print("--------------------")
+        return
+
+    for permissao in permissoes:
+        print(f"Nome: {permissao.nome}")
+        print(f"Descrição: {permissao.descricao}")
+        print(f"Status: {permissao.status}")
+        print("--------------------")
+
+
+# =========================
+# CRIAÇÃO DOS OBJETOS
+# =========================
 
 role_ti = Role(
     1,
     "ROLE_ANALISTA_TI",
-    "Permissoes para Analistas de TI",
+    "Permissões para Analistas de TI",
     True
 )
 
+role_gerente = Role(
+    2,
+    "ROLE_GERENTE_TI",
+    "Permissões para Gerentes de TI",
+    True
+)
+
+roles = [role_ti, role_gerente]
+
+
+permissao_crm = Permissao(
+    1,
+    "VISUALIZAR_CRM",
+    "Permite visualizar informações do CRM",
+    True
+)
+
+permissao_editar = Permissao(
+    2,
+    "EDITAR_CRM",
+    "Permite editar informações do CRM",
+    True
+)
+
+permissoes = [permissao_crm, permissao_editar]
+
+
+# Associação inicial das permissões às Roles
+role_ti.adicionar_permissao(permissao_crm)
+role_ti.adicionar_permissao(permissao_editar)
+
+role_gerente.adicionar_permissao(permissao_crm)
+
+
+# Criação do usuário
 usuario_joao = Usuario(
     1,
     "João",
@@ -50,131 +103,12 @@ usuario_joao = Usuario(
     role_ti
 )
 
-role_gerente = Role(
-    2,
-    "ROLE_GERENTE_TI",
-    "Permissoes para Gerentes de TI",
-    True
-)
-
-roles = [role_ti, role_gerente]
-
-permissao_crm = Permissao(
-    1,
-    "VISUALIZAR_CRM",
-    "Permite visualizar informacoes do CRM",
-    True
-)
-
-permissao_editar = Permissao(
-    2,
-    "EDITAR_CRM",
-    "Permite editar informacoes do CRM",
-    False
-)
-
-permissao_editar.ativar()
-
-permissoes = [permissao_crm, permissao_editar]
-
-usuario_joao.alterar_role(role_gerente)
-
-for permissao in usuario_joao.role.permissoes:
-    print(permissao.nome)
-
-print(usuario_joao.role.nome)
-
-role_gerente.adicionar_permissao(permissao_crm)
-
-usuario_joao.alterar_role(role_gerente)
-
-if usuario_joao.pode_acessar(permissao_crm):
-    print("Acesso permitido.")
-else:
-    print("Acesso negado.")
-
-if usuario_joao.pode_acessar(permissao_crm):
-    print("João, estando ativo e com a Role_GERENTE_TI ativa, consegue acessar Visualizar_CRM?")
-
-print(usuario_joao.role.nome)
-print(usuario_joao.nome)
-print(usuario_joao.role.nome)
-
-print(role_ti.nome)
-print(role_ti.status)
-
-permissao_crm = Permissao(
-    1,
-    "VISUALIZAR_CRM",
-    "Permite visualizar informacoes do CRM",
-    True
-)
-
-role_ti.adicionar_permissao(permissao_crm)
-
-print(role_ti.permissoes)
-print(role_ti.permissoes[0].nome)
-
-permissao_editar = Permissao(
-    2,
-    "EDITAR_CRM",
-    "Permite editar informacoes do CRM",
-    False
-)
-
-role_ti.adicionar_permissao(permissao_editar)
-
-permissao_editar.ativar()
-
-role_ti.adicionar_permissao(permissao_editar)
-
-print(role_ti.permissoes)
-
-for permissao in role_ti.permissoes:
-    print(permissao.nome)
-
-role_ti.remover_permissao(permissao_editar)
-print(role_ti.permissoes)
-
-role_ti.remover_permissao(permissao_editar)
-
-role_ti.consultar_permissoes()
-
-role_rh = Role(
-    2,
-    "ROLE_RH",
-    "Permissões para o RH",
-    True
-)
-
-role_rh.consultar_permissoes()
-
-permissao_financeiro = Permissao(
-    3,
-    "ACESSAR_FINANCEIRO",
-    "Permite visualizar informações financeiras",
-    True
-)
-
-print(usuario_joao.pode_acessar(permissao_financeiro))
-
-usuario_joao.desativar()
-
-print(usuario_joao.pode_acessar(permissao_crm))
-
-usuario_joao.status = True
-
-role_gerente.desativar()
-
-print(usuario_joao.pode_acessar(permissao_crm))
-
-usuario_joao.status = True
-role_gerente.ativar()
-permissao_crm.desativar()
-
-print(usuario_joao.pode_acessar(permissao_crm))
-
 usuarios = [usuario_joao]
+
+
+# =========================
+# MENU PRINCIPAL
+# =========================
 
 while True:
     print("\n=== MENU RBAC ===")

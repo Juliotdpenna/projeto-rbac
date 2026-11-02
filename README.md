@@ -1,42 +1,56 @@
 # Projeto RBAC em Python
 
-Projeto de estudo e desenvolvimento de um sistema de **Role-Based Access Control (RBAC)**, modelo de controle de acesso baseado em funções, aplicado ao contexto de **Identity and Access Management (IAM)** e Segurança da Informação.
+Projeto de estudo e desenvolvimento de uma **Plataforma de Gerenciamento de Acessos baseada em RBAC (Role-Based Access Control)**, aplicada ao contexto de **IAM (Identity and Access Management)** e Segurança da Informação.
 
 ## Objetivo
 
-Desenvolver, de forma incremental, um sistema para gerenciar usuários, funções (Roles), sistemas e permissões, aplicando princípios de controle de acesso e Segurança da Informação.
+Desenvolver, de forma incremental, uma plataforma para gerenciar usuários, funções (Roles), permissões e grupos, aplicando princípios de controle de acesso e Segurança da Informação.
 
-O projeto tem como foco o aprendizado prático de Python, modelagem de sistemas, bancos de dados e conceitos de Segurança da Informação.
+O projeto tem como foco o aprendizado prático de Python, modelagem de sistemas, desenvolvimento de APIs, bancos de dados e conceitos de IAM.
 
-## Funcionalidades planejadas
+## Funcionalidades implementadas
 
-- Gerenciamento de usuários, Roles e permissões.
-- Associação de usuários a Roles.
-- Controle de acesso conforme as permissões atribuídas.
-- Gerenciamento de sistemas e grupos.
-- Armazenamento persistente em banco de dados.
-- Solicitações e aprovações de acesso.
-- Auditoria e rastreabilidade de operações.
-- Processos de onboarding e offboarding.
-- Relatórios para apoiar a governança de acessos.
+- Cadastro e consulta de usuários.
+- Atualização, desativação e reativação de usuários.
+- Gerenciamento de Roles e permissões.
+- Associação de permissões a Roles.
+- Gerenciamento de grupos e associações entre usuários e Roles.
+- Verificação de autorização conforme as permissões atribuídas.
+- Persistência de dados com SQLite.
+- Autenticação por matrícula e senha.
+- Armazenamento de senhas com hash Argon2id.
+- Autenticação baseada em tokens JWT.
+- API REST desenvolvida com FastAPI.
+- Testes automatizados com pytest.
 
-## Tecnologias e conceitos
+## Tecnologias utilizadas
 
-- Python
-- Git e GitHub
-- Programação Orientada a Objetos
-- SQL e SQLite — previstos para etapas futuras
-- IAM e RBAC
-- Princípio do menor privilégio
-- Segregação de funções (SoD)
+- **Python** — linguagem principal.
+- **SQLite** — banco de dados relacional.
+- **FastAPI** — desenvolvimento da API REST.
+- **Pydantic** — validação de dados.
+- **Argon2id** — armazenamento seguro de senhas.
+- **PyJWT** — criação e validação de tokens JWT.
+- **python-dotenv** — gerenciamento de variáveis de ambiente.
+- **pytest** — testes automatizados.
+- **HTTPX** — suporte aos testes da API.
+- **Git e GitHub** — versionamento e documentação.
+
+## Conceitos de Segurança da Informação abordados
+
+- Identity and Access Management (IAM).
+- Role-Based Access Control (RBAC).
+- Princípio do menor privilégio.
+- Segregação de funções (SoD).
+- Autenticação e autorização.
+- Hash de senhas.
+- Autenticação baseada em tokens.
 
 ## Status do projeto
 
-**Em desenvolvimento.**
+**Em desenvolvimento (MVP).**
 
-A implementação inicial já contempla classes para usuários, Roles e permissões, verificações de autorização e um menu de consultas no terminal.
-
-As funcionalidades serão ampliadas gradualmente, com revisão do código e testes à medida que cada etapa for concluída.
+O projeto já possui uma estrutura funcional de gerenciamento de acessos, persistência em banco de dados, autenticação, autorização e API REST.
 
 ## Objetivo de aprendizado
 

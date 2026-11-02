@@ -7,15 +7,15 @@ class Permissao:
         self.status = status
 
     def ativar(self):
-            if self.status:
-                print("A permissão já está ativa.")
-            else:
-                self.status = True
-                print("Permissão ativada com sucesso.")
+        if self.status:
+            print("A permissão já está ativa.")
+        else:
+            self.status = True
+            print("Permissão ativada com sucesso.")
 
     def desativar(self):
-            if self.status:
-                self.status = False
-                print("Permissão desativada com sucesso.")
-            else:
-                print("A permissão já está desativada.")
+        if self.status:
+            self.status = False
+            print("Permissão desativada com sucesso.")
+        else:
+            print("A permissão já está desativada.")

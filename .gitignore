@@ -3,6 +3,7 @@
 .venv/
 venv/
 env/
+.venv-1/
 
 # Cache do Python
 __pycache__/
@@ -27,3 +28,13 @@ logs/*.log
 # Arquivos do sistema
 .DS_Store
 Thumbs.db
+
+# Arquivos de backup
+*_backup.py
+*.bak
+
+# Arquivos temporários
+*.tmp
+
+# Rascunhos e testes manuais locais
+rascunhos/
