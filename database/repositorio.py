@@ -424,6 +424,185 @@ def cadastrar_grupo(grupo, conexao=None):
         if fechar_conexao:
             conexao.close()
 
+def atualizar_grupo(grupo, conexao=None):
+    fechar_conexao = conexao is None
+
+    if fechar_conexao:
+        conexao = conectar()
+
+    try:
+        resultado = conexao.execute(
+            """
+            UPDATE grupos
+            SET nome = ?,
+                descricao = ?
+            WHERE id = ?
+            """,
+            (
+                grupo.nome,
+                grupo.descricao,
+                grupo.id
+            )
+        )
+
+        if resultado.rowcount == 0:
+            raise ValueError("Grupo não encontrado.")
+
+        if fechar_conexao:
+            conexao.commit()
+
+    except Exception:
+        if fechar_conexao:
+            conexao.rollback()
+        raise
+
+    finally:
+        if fechar_conexao:
+            conexao.close()
+
+
+def desativar_grupo(grupo_id, conexao=None):
+    fechar_conexao = conexao is None
+
+    if fechar_conexao:
+        conexao = conectar()
+
+    try:
+        resultado = conexao.execute(
+            """
+            UPDATE grupos
+            SET status = 0
+            WHERE id = ? AND status = 1
+            """,
+            (grupo_id,)
+        )
+
+        if resultado.rowcount == 0:
+            raise ValueError(
+                "Grupo não encontrado ou já desativado."
+            )
+
+        if fechar_conexao:
+            conexao.commit()
+
+    except Exception:
+        if fechar_conexao:
+            conexao.rollback()
+        raise
+
+    finally:
+        if fechar_conexao:
+            conexao.close()
+
+
+def reativar_grupo(grupo_id, conexao=None):
+    fechar_conexao = conexao is None
+
+    if fechar_conexao:
+        conexao = conectar()
+
+    try:
+        resultado = conexao.execute(
+            """
+            UPDATE grupos
+            SET status = 1
+            WHERE id = ? AND status = 0
+            """,
+            (grupo_id,)
+        )
+
+        if resultado.rowcount == 0:
+            raise ValueError(
+                "Grupo não encontrado ou já ativo."
+            )
+
+        if fechar_conexao:
+            conexao.commit()
+
+    except Exception:
+        if fechar_conexao:
+            conexao.rollback()
+        raise
+
+    finally:
+        if fechar_conexao:
+            conexao.close()
+
+
+def desassociar_usuario_grupo(
+    grupo_id,
+    usuario_id,
+    conexao=None
+):
+    fechar_conexao = conexao is None
+
+    if fechar_conexao:
+        conexao = conectar()
+
+    try:
+        resultado = conexao.execute(
+            """
+            DELETE FROM grupo_usuarios
+            WHERE grupo_id = ? AND usuario_id = ?
+            """,
+            (grupo_id, usuario_id)
+        )
+
+        if resultado.rowcount == 0:
+            raise ValueError(
+                "Associação entre grupo e usuário não encontrada."
+            )
+
+        if fechar_conexao:
+            conexao.commit()
+
+    except Exception:
+        if fechar_conexao:
+            conexao.rollback()
+        raise
+
+    finally:
+        if fechar_conexao:
+            conexao.close()
+
+
+def desassociar_role_grupo(
+    grupo_id,
+    role_id,
+    conexao=None
+):
+    fechar_conexao = conexao is None
+
+    if fechar_conexao:
+        conexao = conectar()
+
+    try:
+        resultado = conexao.execute(
+            """
+            DELETE FROM grupo_roles
+            WHERE grupo_id = ? AND role_id = ?
+            """,
+            (grupo_id, role_id)
+        )
+
+        if resultado.rowcount == 0:
+            raise ValueError(
+                "Associação entre grupo e Role não encontrada."
+            )
+
+        if fechar_conexao:
+            conexao.commit()
+
+    except Exception:
+        if fechar_conexao:
+            conexao.rollback()
+        raise
+
+    finally:
+        if fechar_conexao:
+            conexao.close()
+
+
 def consultar_grupos(conexao=None):
     fechar_conexao = conexao is None
 
@@ -730,6 +909,219 @@ def consultar_usuario_login(matricula, conexao=None):
         ).fetchone()
 
         return registro
+
+    finally:
+        if fechar_conexao:
+            conexao.close()
+
+
+def atualizar_role(role, conexao=None):
+    fechar_conexao = conexao is None
+
+    if fechar_conexao:
+        conexao = conectar()
+
+    try:
+        resultado = conexao.execute(
+            """
+            UPDATE roles
+            SET nome = ?,
+                descricao = ?
+            WHERE id = ?
+            """,
+            (
+                role.nome,
+                role.descricao,
+                role.id
+            )
+        )
+
+        if resultado.rowcount == 0:
+            raise ValueError("Role não encontrada.")
+
+        if fechar_conexao:
+            conexao.commit()
+
+    except Exception:
+        if fechar_conexao:
+            conexao.rollback()
+        raise
+
+    finally:
+        if fechar_conexao:
+            conexao.close()
+
+
+def desativar_role(role_id, conexao=None):
+    fechar_conexao = conexao is None
+
+    if fechar_conexao:
+        conexao = conectar()
+
+    try:
+        resultado = conexao.execute(
+            """
+            UPDATE roles
+            SET status = 0
+            WHERE id = ? AND status = 1
+            """,
+            (role_id,)
+        )
+
+        if resultado.rowcount == 0:
+            raise ValueError(
+                "Role não encontrada ou já desativada."
+            )
+
+        if fechar_conexao:
+            conexao.commit()
+
+    except Exception:
+        if fechar_conexao:
+            conexao.rollback()
+        raise
+
+    finally:
+        if fechar_conexao:
+            conexao.close()
+
+
+def reativar_role(role_id, conexao=None):
+    fechar_conexao = conexao is None
+
+    if fechar_conexao:
+        conexao = conectar()
+
+    try:
+        resultado = conexao.execute(
+            """
+            UPDATE roles
+            SET status = 1
+            WHERE id = ? AND status = 0
+            """,
+            (role_id,)
+        )
+
+        if resultado.rowcount == 0:
+            raise ValueError(
+                "Role não encontrada ou já ativa."
+            )
+
+        if fechar_conexao:
+            conexao.commit()
+
+    except Exception:
+        if fechar_conexao:
+            conexao.rollback()
+        raise
+
+    finally:
+        if fechar_conexao:
+            conexao.close()
+
+
+def desassociar_permissao_role(
+    role_id,
+    permissao_id,
+    conexao=None
+):
+    fechar_conexao = conexao is None
+
+    if fechar_conexao:
+        conexao = conectar()
+
+    try:
+        resultado = conexao.execute(
+            """
+            DELETE FROM role_permissoes
+            WHERE role_id = ? AND permissao_id = ?
+            """,
+            (role_id, permissao_id)
+        )
+
+        if resultado.rowcount == 0:
+            raise ValueError(
+                "Associação entre Role e permissão não encontrada."
+            )
+
+        if fechar_conexao:
+            conexao.commit()
+
+    except Exception:
+        if fechar_conexao:
+            conexao.rollback()
+        raise
+
+    finally:
+        if fechar_conexao:
+            conexao.close()
+
+
+def atualizar_permissao(permissao, conexao=None):
+    fechar_conexao = conexao is None
+
+    if fechar_conexao:
+        conexao = conectar()
+
+    try:
+        resultado = conexao.execute(
+            """
+            UPDATE permissoes
+            SET nome = ?,
+                descricao = ?
+            WHERE id = ?
+            """,
+            (
+                permissao.nome,
+                permissao.descricao,
+                permissao.id,
+            )
+        )
+
+        if resultado.rowcount == 0:
+            raise ValueError("Permissão não encontrada.")
+
+        if fechar_conexao:
+            conexao.commit()
+
+    except Exception:
+        if fechar_conexao:
+            conexao.rollback()
+        raise
+
+    finally:
+        if fechar_conexao:
+            conexao.close()
+
+
+def reativar_permissao(permissao_id, conexao=None):
+    fechar_conexao = conexao is None
+
+    if fechar_conexao:
+        conexao = conectar()
+
+    try:
+        resultado = conexao.execute(
+            """
+            UPDATE permissoes
+            SET status = 1
+            WHERE id = ? AND status = 0
+            """,
+            (permissao_id,)
+        )
+
+        if resultado.rowcount == 0:
+            raise ValueError(
+                "Permissão não encontrada ou já ativa."
+            )
+
+        if fechar_conexao:
+            conexao.commit()
+
+    except Exception:
+        if fechar_conexao:
+            conexao.rollback()
+        raise
 
     finally:
         if fechar_conexao:

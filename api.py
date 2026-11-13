@@ -1,7 +1,10 @@
 import sqlite3
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from pydantic import BaseModel, Field, field_validator
+from fastapi.middleware.cors import CORSMiddleware
+from utils.rate_limiting import verificar_limite, registrar_tentativa_falha
+from utils.logs import logger
 
 from utils.seguranca import (
     verificar_senha,
@@ -30,6 +33,17 @@ from database.repositorio import (
     associar_role_grupo,
     consultar_usuario_login,
     desativar_permissao,
+    atualizar_role,
+    desativar_role,
+    reativar_role,
+    desassociar_permissao_role,
+    atualizar_permissao,
+    reativar_permissao,
+    atualizar_grupo,
+    desativar_grupo,
+    reativar_grupo,
+    desassociar_usuario_grupo,
+    desassociar_role_grupo,
 )
 from models.usuario import Usuario
 from models.role import Role
@@ -42,12 +56,23 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 class UsuarioCriacao(BaseModel):
-    nome: str = Field(min_length=1)
-    matricula: str = Field(min_length=1)
-    departamento: str = Field(min_length=1)
-    cargo: str = Field(min_length=1)
-    senha: str = Field(min_length=12)
+    nome: str
+    matricula: str
+    departamento: str
+    cargo: str
+    senha: str = Field(min_length=12, max_length=128)
 
     @field_validator("nome", "matricula", "departamento", "cargo")
     @classmethod
@@ -60,10 +85,10 @@ class UsuarioCriacao(BaseModel):
         return valor
 
 class UsuarioAtualizacao(BaseModel):
-    nome: str = Field(min_length=1)
-    matricula: str = Field(min_length=1)
-    departamento: str = Field(min_length=1)
-    cargo: str = Field(min_length=1)
+    nome: str
+    matricula: str
+    departamento: str
+    cargo: str
 
     @field_validator("nome", "matricula", "departamento", "cargo")
     @classmethod
@@ -76,9 +101,22 @@ class UsuarioAtualizacao(BaseModel):
         return valor
 
 class RoleEntrada(BaseModel):
-    nome: str = Field(min_length=1)
-    descricao: str = Field(min_length=1)
-    status: bool
+    nome: str
+    descricao: str
+
+    @field_validator("nome", "descricao")
+    @classmethod
+    def validar_campos_obrigatorios(cls, valor):
+        valor = valor.strip()
+
+        if not valor:
+            raise ValueError("Este campo não pode ficar vazio.")
+
+        return valor
+
+class RoleAtualizacao(BaseModel):
+    nome: str
+    descricao: str
 
     @field_validator("nome", "descricao")
     @classmethod
@@ -91,9 +129,23 @@ class RoleEntrada(BaseModel):
         return valor
 
 class PermissaoEntrada(BaseModel):
-    nome: str = Field(min_length=1)
-    descricao: str = Field(min_length=1)
+    nome: str
+    descricao: str
     status: bool
+
+    @field_validator("nome", "descricao")
+    @classmethod
+    def validar_campos_obrigatorios(cls, valor):
+        valor = valor.strip()
+
+        if not valor:
+            raise ValueError("Este campo não pode ficar vazio.")
+
+        return valor
+
+class PermissaoAtualizacao(BaseModel):
+    nome: str
+    descricao: str
 
     @field_validator("nome", "descricao")
     @classmethod
@@ -123,6 +175,20 @@ class GrupoEntrada(BaseModel):
     nome: str = Field(min_length=1)
     descricao: str = Field(min_length=1)
     status: bool
+
+    @field_validator("nome", "descricao")
+    @classmethod
+    def validar_campos_obrigatorios(cls, valor):
+        valor = valor.strip()
+
+        if not valor:
+            raise ValueError("Este campo não pode ficar vazio.")
+
+        return valor
+
+class GrupoAtualizacao(BaseModel):
+    nome: str
+    descricao: str
 
     @field_validator("nome", "descricao")
     @classmethod
@@ -222,6 +288,11 @@ def criar_usuario(
 
     try:
         cadastrar_usuario(usuario)
+        logger.info(
+            "USUARIO_CRIADO | Admin_ID=%s | Usuario_ID=%s",
+            usuario_autenticado.id,
+            usuario.id
+        )
 
     except sqlite3.IntegrityError:
         raise HTTPException(
@@ -264,6 +335,11 @@ def atualizar_usuario_api(
 
     try:
         atualizar_usuario(usuario_existente)
+        logger.info(
+            "USUARIO_ATUALIZADO | Admin_ID=%s | Usuario_ID=%s",
+            usuario_autenticado.id,
+            usuario_existente.id
+        )
 
     except sqlite3.IntegrityError:
         raise HTTPException(
@@ -289,6 +365,11 @@ def excluir_usuario(
 ):
     try:
         desativar_usuario(usuario_id)
+        logger.info(
+            "USUARIO_DESATIVADO | Admin_ID=%s | Usuario_ID=%s",
+            usuario_autenticado.id,
+            usuario_id
+        )
     except ValueError:
         raise HTTPException(
             status_code=404,
@@ -312,6 +393,11 @@ def reativar_usuario_api(
 ):
     try:
         reativar_usuario(usuario_id)
+        logger.info(
+            "USUARIO_REATIVADO | Admin_ID=%s | Usuario_ID=%s",
+            usuario_autenticado.id,
+            usuario_id
+        )
     except ValueError:
         raise HTTPException(
             status_code=404,
@@ -351,7 +437,6 @@ def listar_roles(
         for role in roles
     ]
 
-
 @app.post("/roles", status_code=201)
 def criar_role(
     dados: RoleEntrada,
@@ -361,11 +446,16 @@ def criar_role(
         None,  # ID será gerado automaticamente pelo banco de dados
         dados.nome,
         dados.descricao,
-        dados.status,
+        True,  # Nova role começa ativa
     )
 
     try:
         cadastrar_role(role)
+        logger.info(
+            "ROLE_CRIADA | Admin_ID=%s | Role_ID=%s",
+            usuario_autenticado.id,
+            role.id
+        )
     except sqlite3.IntegrityError:
         raise HTTPException(
             status_code=409,
@@ -413,6 +503,11 @@ def criar_permissao(
 
     try:
         cadastrar_permissao(permissao)
+        logger.info(
+            "PERMISSAO_CRIADA | Admin_ID=%s | Permissao_ID=%s",
+            usuario_autenticado.id,
+            permissao.id
+        )
     except sqlite3.IntegrityError:
         raise HTTPException(
             status_code=409,
@@ -438,6 +533,11 @@ def excluir_permissao(
 ):
     try:
         desativar_permissao(permissao_id)
+        logger.info(
+            "PERMISSAO_DESATIVADA | Admin_ID=%s | Permissao_ID=%s",
+            usuario_autenticado.id,
+            permissao_id
+        )
 
     except ValueError:
         raise HTTPException(
@@ -456,6 +556,91 @@ def excluir_permissao(
         "id": permissao_id,
     }
 
+@app.put("/permissoes/{permissao_id}")
+def atualizar_permissao_api(
+    permissao_id: int,
+    dados: PermissaoAtualizacao,
+    usuario_autenticado=Depends(
+        exigir_permissao("GERENCIAR_PERMISSOES")
+    )
+):
+    permissao_existente = next(
+        (p for p in consultar_permissoes() if p.id == permissao_id),
+        None,
+    )
+
+    if permissao_existente is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Permissão não encontrada.",
+        )
+
+    permissao_existente.nome = dados.nome
+    permissao_existente.descricao = dados.descricao
+
+    try:
+        atualizar_permissao(permissao_existente)
+        logger.info(
+            "PERMISSAO_ATUALIZADA | Admin_ID=%s | Permissao_ID=%s",
+            usuario_autenticado.id,
+            permissao_id
+        )
+
+    except sqlite3.IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe uma permissão com o nome informado.",
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Permissão não encontrada.",
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao atualizar permissão.",
+        )
+
+    return {
+        "mensagem": "Permissão atualizada com sucesso.",
+        "id": permissao_id,
+    }
+
+@app.patch("/permissoes/{permissao_id}/reativar")
+def reativar_permissao_api(
+    permissao_id: int,
+    usuario_autenticado=Depends(
+        exigir_permissao("GERENCIAR_PERMISSOES")
+    )
+):
+    try:
+        reativar_permissao(permissao_id)
+        logger.info(
+            "PERMISSAO_REATIVADA | Admin_ID=%s | Permissao_ID=%s",
+            usuario_autenticado.id,
+            permissao_id
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Permissão não encontrada ou já ativa.",
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao reativar permissão.",
+        )
+
+    return {
+        "mensagem": "Permissão reativada com sucesso.",
+        "id": permissao_id,
+    }
+
 @app.post("/roles/{role_id}/permissoes/{permissao_id}")
 def associar_permissao_a_role(
     role_id: int,
@@ -465,6 +650,12 @@ def associar_permissao_a_role(
 
     try:
         associar_permissao_role(role_id, permissao_id)
+        logger.info(
+            "PERMISSAO_ASSOCIADA_ROLE | Admin_ID=%s | Role_ID=%s | Permissao_ID=%s",
+            usuario_autenticado.id,
+            role_id,
+            permissao_id
+        )
     except sqlite3.IntegrityError:
         raise HTTPException(
             status_code=409,
@@ -509,6 +700,148 @@ def listar_permissoes_da_role(
         }
         for permissao in role.permissoes
     ]
+
+
+@app.put("/roles/{role_id}")
+def atualizar_role_api(
+    role_id: int,
+    dados: RoleAtualizacao,
+    usuario_autenticado=Depends(exigir_permissao("GERENCIAR_ROLES"))
+):
+    role_existente = next(
+        (r for r in consultar_roles() if r.id == role_id),
+        None,
+    )
+
+    if role_existente is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Role não encontrada.",
+        )
+
+    role_existente.nome = dados.nome
+    role_existente.descricao = dados.descricao
+
+    try:
+        atualizar_role(role_existente)
+        logger.info(
+            "ROLE_ATUALIZADA | Admin_ID=%s | Role_ID=%s",
+            usuario_autenticado.id,
+            role_id
+        )
+
+    except sqlite3.IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe uma Role com os dados informados.",
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao atualizar Role.",
+        )
+
+    return {
+        "mensagem": "Role atualizada com sucesso.",
+        "id": role_id,
+    }
+
+
+@app.delete("/roles/{role_id}")
+def desativar_role_api(
+    role_id: int,
+    usuario_autenticado=Depends(exigir_permissao("GERENCIAR_ROLES"))
+):
+    try:
+        desativar_role(role_id)
+        logger.info(
+            "ROLE_DESATIVADA | Admin_ID=%s | Role_ID=%s",
+            usuario_autenticado.id,
+            role_id
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Role não encontrada ou já desativada.",
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao desativar Role.",
+        )
+
+    return {
+        "mensagem": "Role desativada com sucesso.",
+        "id": role_id,
+    }
+
+
+@app.patch("/roles/{role_id}/reativar")
+def reativar_role_api(
+    role_id: int,
+    usuario_autenticado=Depends(exigir_permissao("GERENCIAR_ROLES"))
+):
+    try:
+        reativar_role(role_id)
+        logger.info(
+            "ROLE_REATIVADA | Admin_ID=%s | Role_ID=%s",
+            usuario_autenticado.id,
+            role_id
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Role não encontrada ou já ativa.",
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao reativar Role.",
+        )
+
+    return {
+        "mensagem": "Role reativada com sucesso.",
+        "id": role_id,
+    }
+
+
+@app.delete("/roles/{role_id}/permissoes/{permissao_id}")
+def remover_permissao_da_role(
+    role_id: int,
+    permissao_id: int,
+    usuario_autenticado=Depends(exigir_permissao("GERENCIAR_ROLES"))
+):
+    try:
+        desassociar_permissao_role(role_id, permissao_id)
+        logger.info(
+            "PERMISSAO_REMOVIDA_ROLE | Admin_ID=%s | Role_ID=%s | Permissao_ID=%s",
+            usuario_autenticado.id,
+            role_id,
+            permissao_id
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Associação entre Role e permissão não encontrada.",
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao remover permissão da Role.",
+        )
+
+    return {
+        "mensagem": "Permissão removida da Role com sucesso.",
+        "role_id": role_id,
+        "permissao_id": permissao_id,
+    }
 
 @app.get("/grupos")
 def listar_grupos(
@@ -562,6 +895,11 @@ def criar_grupo(
 
     try:
         cadastrar_grupo(grupo)
+        logger.info(
+            "GRUPO_CRIADO | Admin_ID=%s | Grupo_ID=%s",
+            usuario_autenticado.id,
+            grupo.id
+        )
 
     except sqlite3.IntegrityError:
         raise HTTPException(
@@ -614,9 +952,201 @@ def consultar_grupo_por_id(
     }
 
 
+@app.put("/grupos/{grupo_id}")
+def atualizar_grupo_api(
+    grupo_id: int,
+    dados: GrupoAtualizacao,
+    usuario_autenticado=Depends(
+        exigir_permissao("GERENCIAR_GRUPOS")
+    )
+):
+    grupo_existente = next(
+        (g for g in consultar_grupos() if g.id == grupo_id),
+        None,
+    )
+
+    if grupo_existente is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Grupo não encontrado.",
+        )
+
+    grupo_existente.nome = dados.nome
+    grupo_existente.descricao = dados.descricao
+
+    try:
+        atualizar_grupo(grupo_existente)
+        logger.info(
+            "GRUPO_ATUALIZADO | Admin_ID=%s | Grupo_ID=%s",
+            usuario_autenticado.id,
+            grupo_id
+        )
+
+    except sqlite3.IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe um grupo com o nome informado.",
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Grupo não encontrado.",
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao atualizar grupo.",
+        )
+
+    return {
+        "mensagem": "Grupo atualizado com sucesso.",
+        "id": grupo_id,
+    }
+
+
+@app.delete("/grupos/{grupo_id}")
+def desativar_grupo_api(
+    grupo_id: int,
+    usuario_autenticado=Depends(
+        exigir_permissao("GERENCIAR_GRUPOS")
+    )
+):
+    try:
+        desativar_grupo(grupo_id)
+        logger.info(
+            "GRUPO_DESATIVADO | Admin_ID=%s | Grupo_ID=%s",
+            usuario_autenticado.id,
+            grupo_id
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Grupo não encontrado ou já desativado.",
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao desativar grupo.",
+        )
+
+    return {
+        "mensagem": "Grupo desativado com sucesso.",
+        "id": grupo_id,
+    }
+
+
+@app.patch("/grupos/{grupo_id}/reativar")
+def reativar_grupo_api(
+    grupo_id: int,
+    usuario_autenticado=Depends(
+        exigir_permissao("GERENCIAR_GRUPOS")
+    )
+):
+    try:
+        reativar_grupo(grupo_id)
+        logger.info(
+            "GRUPO_REATIVADO | Admin_ID=%s | Grupo_ID=%s",
+            usuario_autenticado.id,
+            grupo_id
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Grupo não encontrado ou já ativo.",
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao reativar grupo.",
+        )
+
+    return {
+        "mensagem": "Grupo reativado com sucesso.",
+        "id": grupo_id,
+    }
+
+
+@app.delete("/grupos/{grupo_id}/usuarios/{usuario_id}")
+def remover_usuario_do_grupo(
+    grupo_id: int,
+    usuario_id: int,
+    usuario_autenticado=Depends(
+        exigir_permissao("GERENCIAR_GRUPOS")
+    )
+):
+    try:
+        desassociar_usuario_grupo(grupo_id, usuario_id)
+        logger.info(
+            "USUARIO_REMOVIDO_GRUPO | Admin_ID=%s | Grupo_ID=%s | Usuario_ID=%s",
+            usuario_autenticado.id,
+            grupo_id,
+            usuario_id
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Associação entre grupo e usuário não encontrada.",
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao remover usuário do grupo.",
+        )
+
+    return {
+        "mensagem": "Usuário removido do grupo com sucesso.",
+        "grupo_id": grupo_id,
+        "usuario_id": usuario_id,
+    }
+
+
+@app.delete("/grupos/{grupo_id}/roles/{role_id}")
+def remover_role_do_grupo(
+    grupo_id: int,
+    role_id: int,
+    usuario_autenticado=Depends(
+        exigir_permissao("GERENCIAR_GRUPOS")
+    )
+):
+    try:
+        desassociar_role_grupo(grupo_id, role_id)
+        logger.info(
+            "ROLE_REMOVIDA_GRUPO | Admin_ID=%s | Grupo_ID=%s | Role_ID=%s",
+            usuario_autenticado.id,
+            grupo_id,
+            role_id
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail="Associação entre grupo e Role não encontrada.",
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao remover Role do grupo.",
+        )
+
+    return {
+        "mensagem": "Role removida do grupo com sucesso.",
+        "grupo_id": grupo_id,
+        "role_id": role_id,
+    }
+
+
 @app.post("/grupos/{grupo_id}/usuarios/{usuario_id}")
 def adicionar_usuario_ao_grupo(
-    grupo_id: int, 
+    grupo_id: int,
     usuario_id: int,
     usuario_autenticado=Depends(exigir_permissao("GERENCIAR_GRUPOS"))
 ):
@@ -643,6 +1173,12 @@ def adicionar_usuario_ao_grupo(
 
     try:
         associar_usuario_grupo(grupo_id, usuario_id)
+        logger.info(
+            "USUARIO_ASSOCIADO_GRUPO | Admin_ID=%s | Grupo_ID=%s | Usuario_ID=%s",
+            usuario_autenticado.id,
+            grupo_id,
+            usuario_id
+        )
     except sqlite3.IntegrityError:
         raise HTTPException(
             status_code=409,
@@ -663,7 +1199,7 @@ def adicionar_usuario_ao_grupo(
 
 @app.post("/grupos/{grupo_id}/roles/{role_id}")
 def adicionar_role_ao_grupo(
-    grupo_id: int, 
+    grupo_id: int,
     role_id: int,
     usuario_autenticado=Depends(exigir_permissao("GERENCIAR_GRUPOS"))
 ):
@@ -690,6 +1226,12 @@ def adicionar_role_ao_grupo(
 
     try:
         associar_role_grupo(grupo_id, role_id)
+        logger.info(
+            "ROLE_ASSOCIADA_GRUPO | Admin_ID=%s | Grupo_ID=%s | Role_ID=%s",
+            usuario_autenticado.id,
+            grupo_id,
+            role_id
+        )
     except sqlite3.IntegrityError:
         raise HTTPException(
             status_code=409,
@@ -708,11 +1250,27 @@ def adicionar_role_ao_grupo(
     }
 
 @app.post("/auth/login")
-def realizar_login(dados: LoginEntrada):
+def realizar_login(dados: LoginEntrada, request: Request):
+    ip = request.client.host if request.client else "desconhecido"
+
+    if not verificar_limite(ip):
+        logger.warning(
+            "LOGIN_BLOQUEADO | IP=%s",
+            ip
+        )
+        raise HTTPException(
+            status_code=429,
+            detail="Muitas tentativas de login. Aguarde 1 minuto."
+        )
+
     registro = consultar_usuario_login(dados.matricula)
 
-    # Mensagem genérica para não revelar se a matrícula existe.
     if registro is None:
+        registrar_tentativa_falha(ip)
+        logger.warning(
+            "LOGIN_FALHA | Motivo=Usuario_nao_encontrado | IP=%s",
+            ip
+        )
         raise HTTPException(
             status_code=401,
             detail="Matrícula ou senha inválida."
@@ -721,18 +1279,36 @@ def realizar_login(dados: LoginEntrada):
     usuario_id, _, status, senha_hash = registro
 
     if not status or not senha_hash:
+        registrar_tentativa_falha(ip)
+        logger.warning(
+            "LOGIN_FALHA | Usuario_ID=%s | Motivo=Usuario_inativo_ou_sem_hash | IP=%s",
+            usuario_id,
+            ip
+        )
         raise HTTPException(
             status_code=401,
             detail="Matrícula ou senha inválida."
         )
 
     if not verificar_senha(dados.senha, senha_hash):
+        registrar_tentativa_falha(ip)
+        logger.warning(
+            "LOGIN_FALHA | Usuario_ID=%s | Motivo=Senha_invalida | IP=%s",
+            usuario_id,
+            ip
+        )
         raise HTTPException(
             status_code=401,
             detail="Matrícula ou senha inválida."
         )
 
     token = criar_access_token(usuario_id)
+
+    logger.info(
+        "LOGIN_SUCESSO | Usuario_ID=%s | IP=%s",
+        usuario_id,
+        ip
+    )
 
     return {
         "access_token": token,
