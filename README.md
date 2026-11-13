@@ -265,3 +265,9 @@ Compreender não apenas como implementar um sistema de controle de acesso, mas t
 ## Aviso
 
 Este projeto possui finalidade educacional. Apesar de implementar mecanismos de segurança, ainda está em desenvolvimento e não deve ser utilizado para controlar acessos em ambientes de produção sem uma avaliação de segurança, testes adicionais e os controles necessários.
+
+## Melhorias planejadas
+
+- Aprimoramento da organização visual do dashboard.
+- Melhorias na responsividade da interface.
+- Evolução da experiência de navegação entre módulos.
